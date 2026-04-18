@@ -6,6 +6,7 @@
 #include "InputActionValue.h"
 #include "SpriteAssembleCharacter.generated.h"
 
+class UTextRenderComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -18,6 +19,12 @@ enum class EGemType : uint8
 	Split UMETA(DisplayName = "Split Projectile"),
 	DamageUp UMETA(DisplayName = "Damage Up"),
 	Lifesteal UMETA(DisplayName = "Lifesteal")
+};
+UENUM(BlueprintType)
+enum class EAttackMode : uint8
+{
+	Ranged UMETA(DisplayName = "Ranged Attack"),
+	Melee UMETA(DisplayName = "Melee Attack")
 };
 
 UCLASS()
@@ -47,6 +54,31 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "State")
 	bool bCanClimb;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	EAttackMode CurrentAttackMode = EAttackMode::Ranged;
+
+	// 远程和近战的专属虚影动画
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spirit")
+	class UPaperFlipbook* RangedSpiritFlipbook;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spirit")
+	class UPaperFlipbook* MeleeSpiritFlipbook;
+
+	// 近战基础属性
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float MeleeBaseDamage = 30.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float MeleeBaseRange = 100.0f;
+
+	// 提供给UI调用的切换攻击模式函数
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void SetAttackMode(EAttackMode NewMode);
+
+	// 是否在祭坛范围内
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "State")
+	bool bIsNearAltar = false;
+
 	// --- 血量系统 ---
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHealth = 100.0f;
@@ -59,6 +91,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	void Heal(float HealAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "Gems")
+	EGemType SwapGem(int32 SlotIndex, EGemType NewGem);
 
 	// --- 宝石插槽系统 ---
 	// 5个插槽的数组
@@ -88,6 +123,12 @@ protected:
 	void ShootPressed(const FInputActionValue& Value);
 	void ShootReleased(const FInputActionValue& Value);
 	void ClimbAction(const FInputActionValue& Value);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UTextRenderComponent* HealthTextComp;
+
+	void UpdateHealthUI();
+	void GameOver();
 
 	// 修改原有的跳跃函数，用于打断攀爬
 	

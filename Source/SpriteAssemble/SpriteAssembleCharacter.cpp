@@ -13,6 +13,9 @@
 #include "Engine/LocalPlayer.h"
 #include "PaperFlipbookComponent.h"
 #include "SpriteAssembleProjectile.h"
+#include "Components/TextRenderComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "SpriteAssembleEnemyBase.h"
 
 ASpriteAssembleCharacter::ASpriteAssembleCharacter()
 {
@@ -73,12 +76,21 @@ ASpriteAssembleCharacter::ASpriteAssembleCharacter()
 	SpiritComponent->SetUsingAbsoluteRotation(true);
 	SpiritComponent->SetWorldRotation(FRotator::ZeroRotator); // 初始强制朝右
 
+	// 添加血量显示组件
+	HealthTextComp = CreateDefaultSubobject<UTextRenderComponent>(TEXT("HealthText"));
+	HealthTextComp->SetupAttachment(RootComponent);
+	HealthTextComp->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f)); // 调整高度到头顶
+	HealthTextComp->SetHorizontalAlignment(EHTA_Center);
+	HealthTextComp->SetTextRenderColor(FColor::Green);
+
 	EquippedGems.Init(EGemType::None, 5);
 }
 
 void ASpriteAssembleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	CurrentHealth = MaxHealth;
+	UpdateHealthUI();
 
 	// 注册并添加强输入映射上下文
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
@@ -93,6 +105,14 @@ void ASpriteAssembleCharacter::BeginPlay()
 	}
 
 	CurrentHealth = MaxHealth;
+}
+
+void ASpriteAssembleCharacter::UpdateHealthUI()
+{
+	if (HealthTextComp)
+	{
+		HealthTextComp->SetText(FText::AsNumber(FMath::Max(0.0f, CurrentHealth)));
+	}
 }
 
 int32 ASpriteAssembleCharacter::GetGemCount(EGemType GemType) const
@@ -122,17 +142,36 @@ bool ASpriteAssembleCharacter::AddGem(EGemType NewGem)
 	return false;
 }
 
+EGemType ASpriteAssembleCharacter::SwapGem(int32 SlotIndex, EGemType NewGem)
+{
+	if (EquippedGems.IsValidIndex(SlotIndex))
+	{
+		EGemType OldGem = EquippedGems[SlotIndex]; // 记录旧宝石
+		EquippedGems[SlotIndex] = NewGem;          // 装上新宝石
+		return OldGem;                             // 返回旧的用来生成掉落物
+	}
+	return EGemType::None;
+}
+
 // 实现受伤与回血
 float ASpriteAssembleCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (CurrentHealth <= 0.0f) return 0.0f; // 已经死了
+
 	CurrentHealth = FMath::Clamp(CurrentHealth - DamageAmount, 0.0f, MaxHealth);
-	if (CurrentHealth <= 0.0f) { /* 死亡逻辑 */ }
+	UpdateHealthUI();
+
+	if (CurrentHealth <= 0.0f)
+	{
+		GameOver();
+	}
 	return DamageAmount;
 }
 
 void ASpriteAssembleCharacter::Heal(float HealAmount)
 {
 	CurrentHealth = FMath::Clamp(CurrentHealth + HealAmount, 0.0f, MaxHealth);
+	UpdateHealthUI();
 }
 
 // 在 SetupPlayerInputComponent 函数中，补充射击和攀爬的绑定：
@@ -171,69 +210,110 @@ void ASpriteAssembleCharacter::SetupPlayerInputComponent(UInputComponent* Player
 }
 
 // 【新增】射击逻辑实现
+// 找到 ShootPressed 函数中计算 SpawnLocation 的地方并修改：
 void ASpriteAssembleCharacter::ShootPressed(const FInputActionValue& Value)
 {
-	// 已经在攻击中，直接返回
 	if (bIsSpiritAttacking) return;
-
 	bIsShooting = true;
 	bIsSpiritAttacking = true;
-
-	// 判断人物朝向 (UE 2D横板 X为正表示朝右)
 	bool bFacingRight = (GetActorForwardVector().X > 0.0f);
 
 	if (SpiritComponent)
 	{
-		// 【关键修改】：永远固定为 -60。
-		// 人物朝右时，本地 -X 是屏幕左（背后）；
-		// 人物朝左时（已旋转180度），本地 -X 自动就是屏幕右侧（依然是背后）。
-		SpiritComponent->SetRelativeLocation(FVector(-60.0f, 0.0f, 40.0f));
-
-		// 精灵的朝向依然需要手动控制（因为你在构造里设置了绝对旋转以防止动画形变）
+		SpiritComponent->SetRelativeLocation(FVector(-60.0f, -10.0f, 40.0f));
 		SpiritComponent->SetWorldRotation(bFacingRight ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f));
+
+		// 根据当前攻击模式切换虚影动画
+		UPaperFlipbook* TargetFlipbook = (CurrentAttackMode == EAttackMode::Ranged) ? RangedSpiritFlipbook : MeleeSpiritFlipbook;
+		if (TargetFlipbook)
+		{
+			SpiritComponent->SetFlipbook(TargetFlipbook);
+		}
 
 		SpiritComponent->SetHiddenInGame(false);
 		SpiritComponent->PlayFromStart();
 	}
 
-	// 2. 生成子弹
-	if (ProjectileClass)
+	// 统一获取发射/攻击基础位置
+	FVector BaseLocation = SpiritComponent ? SpiritComponent->GetComponentLocation() : GetActorLocation();
+	FVector SpawnLocation = BaseLocation + FVector(bFacingRight ? ProjectileSpawnOffset.X : -ProjectileSpawnOffset.X, ProjectileSpawnOffset.Y, ProjectileSpawnOffset.Z);
+	// 【修复任务1】强制让Y轴与角色保持一致
+	SpawnLocation.Y = GetActorLocation().Y;
+
+	if (CurrentAttackMode == EAttackMode::Ranged)
 	{
-		FVector BaseSpawnLocation = SpiritComponent ? SpiritComponent->GetComponentLocation() : GetActorLocation();
-		FVector CurrentOffset = FVector(bFacingRight ? ProjectileSpawnOffset.X : -ProjectileSpawnOffset.X, ProjectileSpawnOffset.Y, ProjectileSpawnOffset.Z);
-		FVector SpawnLocation = BaseSpawnLocation + CurrentOffset;
-
-		FRotator BaseRotation = bFacingRight ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f);
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.Instigator = GetInstigator();
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		// 获取分裂宝石数量
-		int32 SplitCount = GetGemCount(EGemType::Split);
-		int32 TotalProjectiles = 1 + (SplitCount * 2); // 每个分裂宝石多发射2发（上下各一发）
-		float AngleStep = 5.0f; // 分裂的偏转角度
-
-		for (int32 i = 0; i < TotalProjectiles; i++)
+		// === 远程攻击逻辑 ===
+		if (ProjectileClass)
 		{
-			// 计算偏移角度 (例如: 0, 15, -15, 30, -30)
-			float AngleOffset = (i == 0) ? 0.0f : ((i % 2 == 1) ? 1.0f : -1.0f) * FMath::CeilToFloat(i / 2.0f) * AngleStep;
-			FRotator SpawnRotation = BaseRotation;
-			SpawnRotation.Pitch += AngleOffset; // 改变俯仰角实现扇形散射
+			FRotator BaseRotation = bFacingRight ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f);
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			SpawnParams.Instigator = GetInstigator();
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-			GetWorld()->SpawnActor<ASpriteAssembleProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+			int32 SplitCount = GetGemCount(EGemType::Split);
+			int32 TotalProjectiles = 1 + (SplitCount * 2);
+			float AngleStep = 5.0f;
+
+			for (int32 i = 0; i < TotalProjectiles; i++)
+			{
+				float AngleOffset = (i == 0) ? 0.0f : ((i % 2 == 1) ? 1.0f : -1.0f) * FMath::CeilToFloat(i / 2.0f) * AngleStep;
+				FRotator SpawnRotation = BaseRotation;
+				SpawnRotation.Pitch += AngleOffset;
+				GetWorld()->SpawnActor<ASpriteAssembleProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+			}
+		}
+	}
+	else if (CurrentAttackMode == EAttackMode::Melee)
+	{
+		// === 近战攻击逻辑 ===
+		// 【任务2】计算宝石加成
+		int32 SplitGems = GetGemCount(EGemType::Split);
+		int32 DamageGems = GetGemCount(EGemType::DamageUp);
+		int32 LifestealGems = GetGemCount(EGemType::Lifesteal);
+
+		float FinalRange = MeleeBaseRange + (SplitGems * 50.0f); // 分裂宝石增加范围
+		float FinalDamage = MeleeBaseDamage + (DamageGems * 10.0f); // 伤害宝石增加伤害
+
+		// 进行球体检测 (Sphere Trace)
+		FVector TraceStart = SpawnLocation;
+		FVector TraceEnd = TraceStart + (bFacingRight ? FVector(FinalRange, 0, 0) : FVector(-FinalRange, 0, 0));
+		TArray<FHitResult> HitResults;
+		FCollisionShape SphereShape = FCollisionShape::MakeSphere(40.0f); // 攻击判定半径
+
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+
+		bool bHit = GetWorld()->SweepMultiByChannel(HitResults, TraceStart, TraceEnd, FQuat::Identity, ECC_Pawn, SphereShape, QueryParams);
+		if (bHit)
+		{
+			for (const FHitResult& Hit : HitResults)
+			{
+				if (Hit.GetActor() && Hit.GetActor()->IsA<ASpriteAssembleEnemyBase>())
+				{
+					UGameplayStatics::ApplyDamage(Hit.GetActor(), FinalDamage, GetController(), this, UDamageType::StaticClass());
+
+					// 吸血效果
+					if (LifestealGems > 0)
+					{
+						Heal(LifestealGems * 5.0f);
+					}
+				}
+			}
 		}
 	}
 
-	// 3. 设定精灵攻击动画时常
 	float AttackDuration = 0.5f;
 	if (SpiritComponent && SpiritComponent->GetFlipbookLength() > 0.0f)
 	{
 		AttackDuration = SpiritComponent->GetFlipbookLength();
 	}
-
 	GetWorld()->GetTimerManager().SetTimer(SpiritAttackTimerHandle, this, &ASpriteAssembleCharacter::OnSpiritAttackFinished, AttackDuration, false);
+}
+
+void ASpriteAssembleCharacter::SetAttackMode(EAttackMode NewMode)
+{
+	CurrentAttackMode = NewMode;
 }
 
 void ASpriteAssembleCharacter::ShootReleased(const FInputActionValue& Value)
@@ -319,4 +399,13 @@ void ASpriteAssembleCharacter::OnSpiritAttackFinished()
 	{
 		SpiritComponent->SetHiddenInGame(true);
 	}
+}
+
+void ASpriteAssembleCharacter::GameOver()
+{
+	// 禁用输入
+	DisableInput(Cast<APlayerController>(GetController()));
+
+	// 重启当前关卡（也可以换成显示UI等逻辑）
+	UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
 }

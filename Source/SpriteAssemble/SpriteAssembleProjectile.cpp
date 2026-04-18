@@ -61,24 +61,31 @@ void ASpriteAssembleProjectile::BeginPlay()
 void ASpriteAssembleProjectile::OnProjectileOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (bIsExploding || !OtherActor || OtherActor == this || OtherActor == GetOwner()) return;
-	// 【新增】：如果撞到的是另一个子弹，直接退出！
 	if (OtherActor && OtherActor->IsA<ASpriteAssembleProjectile>()) return;
+
+	// 获取发射者
+	AActor* Shooter = GetInstigator();
+
+	// 判断：如果发射者是玩家，且打到了玩家，则忽略；如果发射者是怪物，且打到了怪物，则忽略。
+	bool bShooterIsPlayer = Shooter && Shooter->IsA<ASpriteAssembleCharacter>();
+	bool bHitPlayer = OtherActor->IsA<ASpriteAssembleCharacter>();
+
+	if (bShooterIsPlayer && bHitPlayer) return; // 玩家不打玩家
+	if (!bShooterIsPlayer && !bHitPlayer) return; // 怪物不打怪物
 
 	float FinalDamage = DamageAmount;
 
-	// 获取发射者（玩家）
-	ASpriteAssembleCharacter* Player = Cast<ASpriteAssembleCharacter>(GetInstigator());
-	if (Player)
+	// 如果是玩家发射的，应用宝石加成
+	if (bShooterIsPlayer)
 	{
-		// 计算增伤宝石
+		ASpriteAssembleCharacter* Player = Cast<ASpriteAssembleCharacter>(Shooter);
 		int32 DamageGems = Player->GetGemCount(EGemType::DamageUp);
-		FinalDamage += (DamageGems * 10.0f); // 每个增伤宝石增加10点伤害
+		FinalDamage += (DamageGems * 10.0f);
 
-		// 计算吸血宝石
 		int32 LifestealGems = Player->GetGemCount(EGemType::Lifesteal);
 		if (LifestealGems > 0)
 		{
-			Player->Heal(LifestealGems * 5.0f); // 每个吸血宝石命中回5点血
+			Player->Heal(LifestealGems * 5.0f);
 		}
 	}
 
