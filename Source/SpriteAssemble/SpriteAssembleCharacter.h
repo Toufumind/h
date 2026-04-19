@@ -108,6 +108,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Gems")
 	bool AddGem(EGemType NewGem);
 
+	// 记录当前攻击的完整动画时长（冷却总时间）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	float CurrentAttackDuration = 0.5f;
+
+	// 获取攻击冷却的百分比 (0.0 到 1.0)，用于绑定UI进度条
+	UFUNCTION(BlueprintPure, Category = "Combat|UI")
+	float GetAttackCooldownPercent() const;
+
 	ASpriteAssembleCharacter();
 
 protected:

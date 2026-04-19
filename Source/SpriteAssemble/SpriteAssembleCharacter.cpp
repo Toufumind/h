@@ -303,12 +303,27 @@ void ASpriteAssembleCharacter::ShootPressed(const FInputActionValue& Value)
 		}
 	}
 
-	float AttackDuration = 0.5f;
+	CurrentAttackDuration = 0.5f;
 	if (SpiritComponent && SpiritComponent->GetFlipbookLength() > 0.0f)
 	{
-		AttackDuration = SpiritComponent->GetFlipbookLength();
+		CurrentAttackDuration = SpiritComponent->GetFlipbookLength();
 	}
-	GetWorld()->GetTimerManager().SetTimer(SpiritAttackTimerHandle, this, &ASpriteAssembleCharacter::OnSpiritAttackFinished, AttackDuration, false);
+	GetWorld()->GetTimerManager().SetTimer(SpiritAttackTimerHandle, this, &ASpriteAssembleCharacter::OnSpiritAttackFinished, CurrentAttackDuration, false);
+}
+
+float ASpriteAssembleCharacter::GetAttackCooldownPercent() const
+{
+	// 如果没有在攻击，或者时长异常，说明冷却已完毕，返回 1.0 (100%)
+	if (!bIsSpiritAttacking || CurrentAttackDuration <= 0.0f)
+	{
+		return 1.0f;
+	}
+
+	// 获取定时器已经流逝的时间
+	float ElapsedTime = GetWorld()->GetTimerManager().GetTimerElapsed(SpiritAttackTimerHandle);
+
+	// 计算百分比并限制在 0~1 之间
+	return FMath::Clamp(ElapsedTime / CurrentAttackDuration, 0.0f, 1.0f);
 }
 
 void ASpriteAssembleCharacter::SetAttackMode(EAttackMode NewMode)
