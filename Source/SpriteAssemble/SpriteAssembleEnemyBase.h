@@ -56,6 +56,13 @@ protected:
 	void UpdateHealthUI();
 	void Die();
 
+	// 勾选后怪物会忽略重力并在Z轴追击玩家
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bIsFlying = false;
+
+	// 提取通用的移动逻辑供子类调用
+	virtual void MoveTowardsTarget(FVector Direction);
+
 	// 获取玩家引用以便子类使用
 	AActor* GetPlayerActor() const;
 };

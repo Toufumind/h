@@ -5,6 +5,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "PaperFlipbookComponent.h"
+#include "Components/CapsuleComponent.h"
 
 ASpriteAssembleEnemyBase::ASpriteAssembleEnemyBase()
 {
@@ -20,6 +21,9 @@ ASpriteAssembleEnemyBase::ASpriteAssembleEnemyBase()
 	GetCharacterMovement()->bConstrainToPlane = true;
 	GetCharacterMovement()->SetPlaneConstraintNormal(FVector(0.0f, -1.0f, 0.0f));
 	GetCharacterMovement()->SetPlaneConstraintAxisSetting(EPlaneConstraintAxisSetting::Y);
+
+	// 让怪物的胶囊体与玩家(Pawn)发生重叠(Overlap)而不是阻挡(Block)
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void ASpriteAssembleEnemyBase::OnEnemyOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -65,8 +69,29 @@ void ASpriteAssembleEnemyBase::BeginPlay()
 {
 	GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &ASpriteAssembleEnemyBase::OnEnemyOverlap);
 	Super::BeginPlay();
+
 	CurrentHealth = MaxHealth;
 	UpdateHealthUI();
+
+	// 如果勾选了飞行，关闭重力并切换移动模式
+	if (bIsFlying)
+	{
+		GetCharacterMovement()->GravityScale = 0.0f;
+		GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+	}
+}
+
+// 实现通用移动逻辑
+void ASpriteAssembleEnemyBase::MoveTowardsTarget(FVector Direction)
+{
+	// 水平移动
+	AddMovementInput(FVector(1.0f, 0.0f, 0.0f), Direction.X);
+
+	// 如果是飞行怪物，增加垂直移动
+	if (bIsFlying)
+	{
+		AddMovementInput(FVector(0.0f, 0.0f, 1.0f), Direction.Z);
+	}
 }
 
 void ASpriteAssembleEnemyBase::Tick(float DeltaTime)
