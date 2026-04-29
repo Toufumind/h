@@ -1,5 +1,4 @@
 #include "SpriteAssembleRangedEnemy.h"
-#include "SpriteAssembleProjectile.h"
 
 void ASpriteAssembleRangedEnemy::Tick(float DeltaTime)
 {
@@ -21,32 +20,13 @@ void ASpriteAssembleRangedEnemy::Tick(float DeltaTime)
 		else if (Distance <= AttackRange)
 		{
 			bIsAttacking = true;
-			// ÃæÏòÍæ¼Ò
+			// TODO: review â€” rewire ranged attack through new combat system
 			FVector Direction = (Player->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 			SetActorRotation(Direction.X > 0 ? FRotator(0, 0, 0) : FRotator(0, 180, 0));
-
-			if (GetWorld()->GetTimeSeconds() - LastFireTime > FireCooldown)
-			{
-				FireProjectile();
-				LastFireTime = GetWorld()->GetTimeSeconds();
-			}
 		}
 		else
 		{
 			bIsAttacking = false;
 		}
-	}
-}
-
-void ASpriteAssembleRangedEnemy::FireProjectile()
-{
-	if (bEnableLegacyProjectileFire && ProjectileClass)
-	{
-		FVector SpawnLoc = GetActorLocation();
-		FRotator SpawnRot = GetActorRotation();
-		FActorSpawnParameters Params;
-		Params.Owner = this;
-		Params.Instigator = this;
-		GetWorld()->SpawnActor<ASpriteAssembleProjectile>(ProjectileClass, SpawnLoc, SpawnRot, Params);
 	}
 }

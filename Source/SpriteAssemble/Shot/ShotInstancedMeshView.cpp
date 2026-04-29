@@ -60,6 +60,15 @@ void AShotInstancedMeshView::UpdateShotVisual(int32 InstanceIndex, const FShotIn
 	InstancedMeshComponent->UpdateInstanceTransform(InstanceIndex, BuildTransform(ShotInstance), true, true, true);
 }
 
+void AShotInstancedMeshView::RemoveShotVisual(int32 InstanceIndex)
+{
+	if (InstanceIndex == INDEX_NONE)
+	{
+		return;
+	}
+	InstancedMeshComponent->RemoveInstance(InstanceIndex);
+}
+
 void AShotInstancedMeshView::ClearShotVisuals()
 {
 	InstancedMeshComponent->ClearInstances();

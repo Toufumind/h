@@ -28,6 +28,7 @@ class UShooterComponent;
 class USpellCircuitComponent;
 class UTargetingComponent;
 class UUICommandControllerComponent;
+// TODO: remove EGemType — superseded by UGemInventoryComponent + GemCommandWorldSubsystem, kept for BP compatibility
 UENUM(BlueprintType)
 enum class EGemType : uint8
 {
@@ -109,8 +110,6 @@ protected:
 	void JumpAction(const FInputActionValue& Value);
 	void StopJumpAction(const FInputActionValue& Value);
 
-	void ShootPressed(const FInputActionValue& Value);
-	void ShootReleased(const FInputActionValue& Value);
 	void ClimbAction(const FInputActionValue& Value);
 
 	// 修改原有的跳跃函数，用于打断攀爬
@@ -131,7 +130,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* MarkerPlaneBackComponent;
 
-	// PaperZD 动画组件
+	// TODO: remove PaperZDAnimComponent — superseded by PresentationComponent, kept for BP compatibility
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	UActorComponent* PaperZDAnimComponent;
 
@@ -181,31 +180,10 @@ private:
 	UUICommandControllerComponent* UICommandControllerComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* ShootActionInput;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	UInputAction* ClimbActionInput;
 
 	// 【新增】角色身后的精灵组件 (无碰撞)
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spirit", meta = (AllowPrivateAccess = "true"))
-	class UPaperFlipbookComponent* SpiritComponent;
-
-	// 【新增】用于在蓝图中指定要发射的子弹类
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spirit", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<class ASpriteAssembleProjectile> ProjectileClass;
-
-	// 【新增】子弹生成的相对偏移量（相对于精灵中心）。可以在蓝图细节面板中随时修改！
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spirit", meta = (AllowPrivateAccess = "true"))
-	FVector ProjectileSpawnOffset = FVector(0.0f, 0.0f, 0.0f);
-
-	// 【新增】防止疯狂连点导致鬼畜的“攻击锁”
-	bool bIsSpiritAttacking = false;
-
-	// 【新增】定时器句柄，用来控制精灵消失的时间
-	FTimerHandle SpiritAttackTimerHandle;
-
-	// 【新增】动画播放完毕后调用的回调函数
-	void OnSpiritAttackFinished();
+	// TODO: review — SpiritComponent was removed; wire replacement if needed
 
 	UFUNCTION()
 	void HandleCharacterDeath(UHealthComponent* InHealthComponent);

@@ -1,4 +1,5 @@
 #include "EffectComponent.h"
+#include "GameplayTagContainer.h"
 #include "../Combat/HealthComponent.h"
 
 UEffectComponent::UEffectComponent()
@@ -65,10 +66,17 @@ void UEffectComponent::TickStatusEffect(FActiveStatusEffect& ActiveStatusEffect,
 	ActiveStatusEffect.RemainingDuration -= DeltaTime;
 	ActiveStatusEffect.TickAccumulator += DeltaTime;
 
-	while (ActiveStatusEffect.TickAccumulator >= StatusTickInterval)
+	if (ActiveStatusEffect.TickAccumulator >= StatusTickInterval)
 	{
 		ActiveStatusEffect.TickAccumulator -= StatusTickInterval;
-		ApplyPeriodicDamage(ActiveStatusEffect);
+
+		// Default: DOT behavior (no policy or explicit Poison)
+		if (!ActiveStatusEffect.Spec.EffectPolicy.IsValid() || ActiveStatusEffect.Spec.EffectPolicy.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Effect.Poison"))))
+		{
+			ApplyPeriodicDamage(ActiveStatusEffect);
+		}
+		// TODO: Slow - apply movement speed modifier
+		// TODO: Mark - accumulate stacks and trigger explosion at max stacks
 	}
 }
 

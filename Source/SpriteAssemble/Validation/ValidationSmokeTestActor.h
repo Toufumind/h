@@ -6,7 +6,6 @@
 
 class AEnemyBase;
 class ASpriteAssembleCharacter;
-class ASpriteAssembleProjectile;
 class AShotInstancedMeshView;
 class URewardPoolDefinition;
 class UUICommandControllerComponent;
@@ -56,9 +55,6 @@ struct FValidationSmokeSnapshot
 	bool bPlayerIsDead = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Validation")
-	bool bFoundLegacyProjectileActor = false;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Validation")
 	FName CommandOwnerName = NAME_None;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Validation")
@@ -93,6 +89,7 @@ public:
 
 	virtual void BeginPlay() override;
 
+	// Editor/smoke bootstrap only. Production content must wire RewardPool through RunConfig.
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Validation")
 	bool ConfigureRewardPool();
 

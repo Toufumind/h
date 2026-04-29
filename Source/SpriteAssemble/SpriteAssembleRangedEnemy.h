@@ -14,16 +14,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	float AttackRange = 400.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	TSubclassOf<class ASpriteAssembleProjectile> ProjectileClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Legacy", meta = (DisplayName = "Enable Legacy Projectile Fire"))
-	bool bEnableLegacyProjectileFire = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	float FireCooldown = 2.0f;
-
+	// TODO: review — wire new combat system for ranged attack
 private:
-	float LastFireTime = 0.0f;
-	void FireProjectile();
 };

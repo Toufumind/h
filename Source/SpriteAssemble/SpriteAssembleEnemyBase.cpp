@@ -4,8 +4,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "PaperFlipbookComponent.h"
 #include "Engine/DamageEvents.h"
+#include "PaperFlipbookComponent.h"
 
 ASpriteAssembleEnemyBase::ASpriteAssembleEnemyBase()
 {

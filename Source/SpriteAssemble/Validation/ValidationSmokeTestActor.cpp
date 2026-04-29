@@ -1,11 +1,10 @@
-#include "ValidationSmokeTestActor.h"
+﻿#include "ValidationSmokeTestActor.h"
 
 #include "../Enemy/EnemyBase.h"
 #include "../Reward/RewardManagerWorldSubsystem.h"
 #include "../Reward/RewardPoolDefinition.h"
 #include "../Shot/ShotInstancedMeshView.h"
 #include "../SpriteAssembleCharacter.h"
-#include "../SpriteAssembleProjectile.h"
 #include "../ThreeC/DamageReactionComponent.h"
 #include "../ThreeC/PlayerMotorComponent.h"
 #include "../UI/RewardViewModelWorldSubsystem.h"
@@ -61,6 +60,7 @@ void AValidationSmokeTestActor::BeginPlay()
 	}
 }
 
+// Editor/smoke bootstrap only. Production content must wire RewardPool through RunConfig.
 bool AValidationSmokeTestActor::ConfigureRewardPool()
 {
 	if (!RewardPool)
@@ -166,12 +166,6 @@ FValidationSmokeSnapshot AValidationSmokeTestActor::CaptureSnapshot() const
 	for (TActorIterator<AShotInstancedMeshView> It(GetWorld()); It; ++It)
 	{
 		Snapshot.bHasShotInstancedMeshView = true;
-		break;
-	}
-
-	for (TActorIterator<ASpriteAssembleProjectile> It(GetWorld()); It; ++It)
-	{
-		Snapshot.bFoundLegacyProjectileActor = true;
 		break;
 	}
 
@@ -294,7 +288,7 @@ void AValidationSmokeTestActor::LogSnapshot(const FValidationSmokeSnapshot& Snap
 		RewardNames += RewardOptionName.ToString();
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("Validation snapshot: Players=%d [%s] EnemyBase=%d ShotInstancedMeshView=%s PlayerMotor=%s DamageReaction=%s PlayerMarkerPlane=%s EnemyMarkerPlane=%s PlayerHorizontalSpeed=%.2f PlayerFalling=%s PlayerJumpBuffered=%s PlayerCoyoteTime=%s PlayerInvincible=%s PlayerDead=%s LegacyProjectileActor=%s CommandOwner=%s RunPhase=%s CompletedNodeCount=%d RedCore=%d GemSlotCount=%d RewardOptions=%d [%s]"),
+	UE_LOG(LogTemp, Display, TEXT("Validation snapshot: Players=%d [%s] EnemyBase=%d ShotInstancedMeshView=%s PlayerMotor=%s DamageReaction=%s PlayerMarkerPlane=%s EnemyMarkerPlane=%s PlayerHorizontalSpeed=%.2f PlayerFalling=%s PlayerJumpBuffered=%s PlayerCoyoteTime=%s PlayerInvincible=%s PlayerDead=%s CommandOwner=%s RunPhase=%s CompletedNodeCount=%d RedCore=%d GemSlotCount=%d RewardOptions=%d [%s]"),
 		Snapshot.PlayerCount,
 		*PlayerNames,
 		Snapshot.EnemyBaseCount,
@@ -309,7 +303,6 @@ void AValidationSmokeTestActor::LogSnapshot(const FValidationSmokeSnapshot& Snap
 		Snapshot.bPlayerIsUsingCoyoteTime ? TEXT("true") : TEXT("false"),
 		Snapshot.bPlayerIsInvincible ? TEXT("true") : TEXT("false"),
 		Snapshot.bPlayerIsDead ? TEXT("true") : TEXT("false"),
-		Snapshot.bFoundLegacyProjectileActor ? TEXT("true") : TEXT("false"),
 		*Snapshot.CommandOwnerName.ToString(),
 		*Snapshot.RunPhase,
 		Snapshot.CompletedNodeCount,

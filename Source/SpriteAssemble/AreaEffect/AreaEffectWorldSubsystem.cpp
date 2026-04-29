@@ -129,7 +129,7 @@ void UAreaEffectWorldSubsystem::ApplyAreaEffectTick(const FAreaEffectInstance& A
 		OverlapResults,
 		AreaEffect.Spec.Location,
 		FQuat::Identity,
-		ECC_Pawn,
+		ECC_GameTraceChannel2,
 		CollisionShape,
 		QueryParams);
 

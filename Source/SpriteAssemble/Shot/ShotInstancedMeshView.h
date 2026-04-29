@@ -20,6 +20,7 @@ public:
 
 	int32 AddShotVisual(const FShotInstance& ShotInstance);
 	void UpdateShotVisual(int32 InstanceIndex, const FShotInstance& ShotInstance);
+	void RemoveShotVisual(int32 InstanceIndex);
 	void ClearShotVisuals();
 
 private:

@@ -33,21 +33,19 @@ FGameplayCommandResult URewardManagerWorldSubsystem::HandleBuildRewardOptions(co
 {
 	CurrentRewardOptions.Reset();
 	const URewardPoolDefinition* RewardPool = ResolveRewardPool();
-	if (RewardPool && RewardPool->RewardOptions.Num() > 0)
+	if (!RewardPool || RewardPool->RewardOptions.Num() == 0)
 	{
-		for (const FRewardOption& RewardOption : RewardPool->RewardOptions)
-		{
-			if (CurrentRewardOptions.Num() >= 3)
-			{
-				break;
-			}
-			CurrentRewardOptions.Add(RewardOption);
-			CurrentRewardOptions.Last().OptionId = FGuid::NewGuid();
-		}
+		return FGameplayCommandResult::Success();
 	}
-	else
+
+	for (const FRewardOption& RewardOption : RewardPool->RewardOptions)
 	{
-		CurrentRewardOptions = BuildFallbackRewardOptions();
+		if (CurrentRewardOptions.Num() >= 3)
+		{
+			break;
+		}
+		CurrentRewardOptions.Add(RewardOption);
+		CurrentRewardOptions.Last().OptionId = FGuid::NewGuid();
 	}
 
 	TArray<FRewardSpec> RewardSpecs;
@@ -94,34 +92,6 @@ URewardPoolDefinition* URewardManagerWorldSubsystem::ResolveRewardPool() const
 	}
 
 	return RewardPoolOverride;
-}
-
-TArray<FRewardOption> URewardManagerWorldSubsystem::BuildFallbackRewardOptions() const
-{
-	TArray<FRewardOption> RewardOptions;
-
-	FRewardOption SmallRedCore;
-	SmallRedCore.OptionId = FGuid::NewGuid();
-	SmallRedCore.ApplyType = ERewardApplyType::AddRedCore;
-	SmallRedCore.RewardSpec.RewardId = TEXT("RedCoreSmall");
-	SmallRedCore.RewardSpec.Quantity = 20;
-	RewardOptions.Add(SmallRedCore);
-
-	FRewardOption LargeRedCore;
-	LargeRedCore.OptionId = FGuid::NewGuid();
-	LargeRedCore.ApplyType = ERewardApplyType::AddRedCore;
-	LargeRedCore.RewardSpec.RewardId = TEXT("RedCoreLarge");
-	LargeRedCore.RewardSpec.Quantity = 40;
-	RewardOptions.Add(LargeRedCore);
-
-	FRewardOption GemSlot;
-	GemSlot.OptionId = FGuid::NewGuid();
-	GemSlot.ApplyType = ERewardApplyType::AddGemSlot;
-	GemSlot.RewardSpec.RewardId = TEXT("GemSlot");
-	GemSlot.RewardSpec.Quantity = 1;
-	RewardOptions.Add(GemSlot);
-
-	return RewardOptions;
 }
 
 FGameplayCommand URewardManagerWorldSubsystem::BuildApplyCommand(const FRewardOption& RewardOption, AActor* ClaimingActor) const

@@ -12,8 +12,6 @@
 #include "InputMappingContext.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
-#include "PaperFlipbookComponent.h"
-#include "SpriteAssembleProjectile.h"
 #include "Attribute/AttributeComponent.h"
 #include "Combat/CombatComponent.h"
 #include "Combat/HealthComponent.h"
@@ -159,21 +157,6 @@ ASpriteAssembleCharacter::ASpriteAssembleCharacter()
 	HealthViewModelComponent = CreateDefaultSubobject<UHealthViewModelComponent>(TEXT("HealthViewModelComponent"));
 	UICommandControllerComponent = CreateDefaultSubobject<UUICommandControllerComponent>(TEXT("UICommandControllerComponent"));
 
-	// 创建精灵组件并附加到角色身上
-	SpiritComponent = CreateDefaultSubobject<UPaperFlipbookComponent>(TEXT("SpiritComponent"));
-	SpiritComponent->SetupAttachment(RootComponent);
-	// 将精灵位置设置在角色身后(-60)和稍微靠上(40)的位置
-	SpiritComponent->SetRelativeLocation(FVector(-60.0f, 0.0f, 40.0f));
-	SpiritComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 精灵不需要碰撞
-	SpiritComponent->SetHiddenInGame(true); // 默认隐藏，开火时才显示
-
-	// 【新增这一行】：让精灵的动画只播放一次，不要无限循环
-	SpiritComponent->SetLooping(false);
-
-	// 【新增这两行】：让精灵使用绝对旋转，不跟着角色一起转！
-	SpiritComponent->SetUsingAbsoluteRotation(true);
-	SpiritComponent->SetWorldRotation(FRotator::ZeroRotator); // 初始强制朝右
-
 	EquippedGems.Init(EGemType::None, 5);
 }
 
@@ -287,17 +270,12 @@ void ASpriteAssembleCharacter::ResetCharacterState()
 {
 	bIsShooting = false;
 	bIsClimbing = false;
-	bIsSpiritAttacking = false;
 
 	GetCharacterMovement()->Activate(true);
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	GetCharacterMovement()->Velocity = FVector::ZeroVector;
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
-	if (SpiritComponent)
-	{
-		SpiritComponent->SetHiddenInGame(true);
-	}
 
 	if (HealthComponent)
 	{
@@ -309,6 +287,7 @@ void ASpriteAssembleCharacter::ResetCharacterState()
 		DamageReactionComponent->ResetReactionState();
 	}
 }
+
 // 在 SetupPlayerInputComponent 函数中，补充射击和攀爬的绑定：
 void ASpriteAssembleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -328,95 +307,13 @@ void ASpriteAssembleCharacter::SetupPlayerInputComponent(UInputComponent* Player
 			EnhancedInputComponent->BindAction(JumpActionInput, ETriggerEvent::Started, this, &ASpriteAssembleCharacter::JumpAction);
 			EnhancedInputComponent->BindAction(JumpActionInput, ETriggerEvent::Completed, this, &ASpriteAssembleCharacter::StopJumpAction);
 		}
-
+		// 3. Climb (W/S key)
 		// 3. 绑定射击 (J键/鼠标左键)
-		if (ShootActionInput)
-		{
-			// Legacy manual shoot is intentionally not bound. Normal combat must enter
-			// through IceMirror/SpellCircuit -> ShooterComponent -> ShotWorldSubsystem.
-		}
-
-		// 4. 绑定攀爬 (W/S键)
 		if (ClimbActionInput)
 		{
 			EnhancedInputComponent->BindAction(ClimbActionInput, ETriggerEvent::Triggered, this, &ASpriteAssembleCharacter::ClimbAction);
 		}
 	}
-}
-
-// 【新增】射击逻辑实现
-void ASpriteAssembleCharacter::ShootPressed(const FInputActionValue& Value)
-{
-	// 已经在攻击中，直接返回
-	if (bIsSpiritAttacking) return;
-
-	bIsShooting = true;
-	bIsSpiritAttacking = true;
-
-	// 判断人物朝向 (UE 2D横板 X为正表示朝右)
-	bool bFacingRight = (GetActorForwardVector().X > 0.0f);
-
-	if (SpiritComponent)
-	{
-		// 【关键修改】：永远固定为 -60。
-		// 人物朝右时，本地 -X 是屏幕左（背后）；
-		// 人物朝左时（已旋转180度），本地 -X 自动就是屏幕右侧（依然是背后）。
-		SpiritComponent->SetRelativeLocation(FVector(-60.0f, 0.0f, 40.0f));
-
-		// 精灵的朝向依然需要手动控制（因为你在构造里设置了绝对旋转以防止动画形变）
-		SpiritComponent->SetWorldRotation(bFacingRight ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f));
-
-		SpiritComponent->SetHiddenInGame(false);
-		SpiritComponent->PlayFromStart();
-	}
-
-	// 2. 生成子弹
-	// Legacy ProjectileClass is kept for asset compatibility only.
-	// Do not spawn ASpriteAssembleProjectile from player input/default runtime flow.
-	const bool bEnableLegacyProjectileSpawn = false;
-	if (bEnableLegacyProjectileSpawn && ProjectileClass)
-	{
-		FVector BaseSpawnLocation = SpiritComponent ? SpiritComponent->GetComponentLocation() : GetActorLocation();
-		FVector CurrentOffset = FVector(bFacingRight ? ProjectileSpawnOffset.X : -ProjectileSpawnOffset.X, ProjectileSpawnOffset.Y, ProjectileSpawnOffset.Z);
-		FVector SpawnLocation = BaseSpawnLocation + CurrentOffset;
-
-		FRotator BaseRotation = bFacingRight ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f);
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.Instigator = GetInstigator();
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		// 获取分裂宝石数量
-		int32 SplitCount = GetGemCount(EGemType::Split);
-		int32 TotalProjectiles = 1 + (SplitCount * 2); // 每个分裂宝石多发射2发（上下各一发）
-		float AngleStep = 5.0f; // 分裂的偏转角度
-
-		for (int32 i = 0; i < TotalProjectiles; i++)
-		{
-			// 计算偏移角度 (例如: 0, 15, -15, 30, -30)
-			float AngleOffset = (i == 0) ? 0.0f : ((i % 2 == 1) ? 1.0f : -1.0f) * FMath::CeilToFloat(i / 2.0f) * AngleStep;
-			FRotator SpawnRotation = BaseRotation;
-			SpawnRotation.Pitch += AngleOffset; // 改变俯仰角实现扇形散射
-
-			GetWorld()->SpawnActor<ASpriteAssembleProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
-		}
-	}
-
-	// 3. 设定精灵攻击动画时常
-	float AttackDuration = 0.5f;
-	if (SpiritComponent && SpiritComponent->GetFlipbookLength() > 0.0f)
-	{
-		AttackDuration = SpiritComponent->GetFlipbookLength();
-	}
-
-	GetWorld()->GetTimerManager().SetTimer(SpiritAttackTimerHandle, this, &ASpriteAssembleCharacter::OnSpiritAttackFinished, AttackDuration, false);
-}
-
-void ASpriteAssembleCharacter::ShootReleased(const FInputActionValue& Value)
-{
-	// 松开鼠标时，只恢复角色的状态，【不再】隐藏精灵
-	bIsShooting = false;
 }
 
 // 【新增】攀爬逻辑实现
@@ -470,30 +367,12 @@ void ASpriteAssembleCharacter::StopJumpAction(const FInputActionValue& Value)
 	PlayerMotorComponent ? PlayerMotorComponent->StopJump() : StopJumping();
 }
 
-// 【新增】当精灵动画播放完毕时自动执行
-void ASpriteAssembleCharacter::OnSpiritAttackFinished()
-{
-	// 解除攻击锁，允许下一次射击
-	bIsSpiritAttacking = false;
-
-	// 隐藏精灵
-	if (SpiritComponent)
-	{
-		SpiritComponent->SetHiddenInGame(true);
-	}
-}
-
 void ASpriteAssembleCharacter::HandleCharacterDeath(UHealthComponent* InHealthComponent)
 {
 	bIsShooting = false;
 	bIsClimbing = false;
-	bIsSpiritAttacking = false;
 
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->Deactivate();
 
-	if (SpiritComponent)
-	{
-		SpiritComponent->SetHiddenInGame(true);
-	}
 }

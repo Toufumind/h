@@ -21,6 +21,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Gameplay|Reward")
 	const TArray<FRewardOption>& GetCurrentRewardOptions() const { return CurrentRewardOptions; }
 
+	// Editor/smoke bootstrap only. Production content must wire RewardPool through RunConfig.
 	UFUNCTION(BlueprintCallable, Category = "Gameplay|Reward")
 	void SetRewardPool(URewardPoolDefinition* InRewardPool) { RewardPoolOverride = InRewardPool; }
 
@@ -37,7 +38,6 @@ private:
 	FGameplayCommandResult HandleBuildRewardOptions(const FGameplayCommand& Command);
 	FGameplayCommandResult HandleClaimReward(const FGameplayCommand& Command);
 	URewardPoolDefinition* ResolveRewardPool() const;
-	TArray<FRewardOption> BuildFallbackRewardOptions() const;
 	FGameplayCommand BuildApplyCommand(const FRewardOption& RewardOption, AActor* ClaimingActor) const;
 	void BroadcastRewardOptionsBuilt() const;
 	void BroadcastRewardClaimed(const FRewardOption& RewardOption) const;

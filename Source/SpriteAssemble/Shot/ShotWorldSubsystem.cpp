@@ -18,6 +18,7 @@ void UShotWorldSubsystem::Deinitialize()
 	Shots.Reset();
 	FreeIndices.Reset();
 	GenerationsByIndex.Reset();
+	ShotIdToInstanceIndex.Reset();
 	MeshView = nullptr;
 	Super::Deinitialize();
 }
@@ -193,7 +194,7 @@ void UShotWorldSubsystem::ProcessShotCollision(FShotInstance& Shot)
 
 	TArray<FHitResult> HitResults;
 	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(FMath::Max(1.0f, Shot.Radius));
-	World->SweepMultiByChannel(HitResults, Shot.PreviousPosition, Shot.Position, FQuat::Identity, ECC_Pawn, CollisionShape, QueryParams);
+	World->SweepMultiByChannel(HitResults, Shot.PreviousPosition, Shot.Position, FQuat::Identity, ECC_GameTraceChannel1, CollisionShape, QueryParams);
 
 	for (const FHitResult& HitResult : HitResults)
 	{
@@ -318,16 +319,26 @@ void UShotWorldSubsystem::DispatchGeneratedCommands(const TArray<FGameplayComman
 
 void UShotWorldSubsystem::RemoveDeadShots()
 {
+	int32 AliveCount = 0;
 	for (int32 Index = 0; Index < Shots.Num(); ++Index)
 	{
 		FShotInstance& Shot = Shots[Index];
-		if (!Shot.bAlive && Shot.ShotId.IsValid())
+		if (!Shot.bAlive)
 		{
 			Shot.ShotId.Reset();
 			Shot.InstanceIndex = INDEX_NONE;
-			FreeIndices.AddUnique(Index);
+		}
+		else
+		{
+			if (AliveCount != Index)
+			{
+				Shots[AliveCount] = MoveTemp(Shot);
+			}
+			++AliveCount;
 		}
 	}
+	Shots.SetNum(AliveCount);
+	FreeIndices.Reset();
 }
 
 void UShotWorldSubsystem::SyncVisuals()
@@ -338,7 +349,9 @@ void UShotWorldSubsystem::SyncVisuals()
 		return;
 	}
 
-	MeshView->ClearShotVisuals();
+	TArray<FShotId> DeadShotIds;
+	ShotIdToInstanceIndex.GetKeys(DeadShotIds);
+
 	for (FShotInstance& Shot : Shots)
 	{
 		if (!Shot.bAlive)
@@ -346,7 +359,25 @@ void UShotWorldSubsystem::SyncVisuals()
 			continue;
 		}
 
-		Shot.InstanceIndex = MeshView->AddShotVisual(Shot);
+		int32* ExistingIndex = ShotIdToInstanceIndex.Find(Shot.ShotId);
+		if (ExistingIndex)
+		{
+			MeshView->UpdateShotVisual(*ExistingIndex, Shot);
+			DeadShotIds.Remove(Shot.ShotId);
+		}
+		else
+		{
+			const int32 NewIndex = MeshView->AddShotVisual(Shot);
+			ShotIdToInstanceIndex.Add(Shot.ShotId, NewIndex);
+			Shot.InstanceIndex = NewIndex;
+		}
+	}
+
+	for (const FShotId& DeadId : DeadShotIds)
+	{
+		const int32 IndexToRemove = ShotIdToInstanceIndex.FindRef(DeadId);
+		MeshView->RemoveShotVisual(IndexToRemove);
+		ShotIdToInstanceIndex.Remove(DeadId);
 	}
 }
 

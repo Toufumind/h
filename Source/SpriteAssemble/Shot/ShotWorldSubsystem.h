@@ -36,6 +36,7 @@ private:
 	TArray<FShotInstance> Shots;
 	TArray<int32> FreeIndices;
 	TMap<int32, int32> GenerationsByIndex;
+	TMap<FShotId, int32> ShotIdToInstanceIndex;
 
 	FShotId AllocateShotId();
 	FShotInstance* FindShot(FShotId ShotId);

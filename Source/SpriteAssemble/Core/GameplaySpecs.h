@@ -231,6 +231,9 @@ struct SPRITEASSEMBLE_API FStatusEffectSpec
 	UPROPERTY(BlueprintReadWrite)
 	FGameplayTag EffectTag;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gameplay")
+	FGameplayTag EffectPolicy;
+
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<AActor> SourceActor = nullptr;
 
