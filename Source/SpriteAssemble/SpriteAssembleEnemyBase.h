@@ -2,13 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "PaperCharacter.h"
+#include "Core/GameplayInterfaces.h"
 #include "SpriteAssembleEnemyBase.generated.h"
 
 class UTextRenderComponent;
-class UPaperZDAnimationComponent;
+class UActorComponent;
 
 UCLASS()
-class SPRITEASSEMBLE_API ASpriteAssembleEnemyBase : public APaperCharacter
+class SPRITEASSEMBLE_API ASpriteAssembleEnemyBase : public APaperCharacter, public IDamageable, public ITargetable, public ITeamAgent
 {
 	GENERATED_BODY()
 
@@ -16,6 +17,9 @@ public:
 	ASpriteAssembleEnemyBase();
 	virtual void Tick(float DeltaTime) override;
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	virtual FGameplayCommandResult ApplyDamageSpec_Implementation(const FDamageSpec& DamageSpec) override;
+	virtual bool IsTargetable_Implementation() const override;
+	virtual EGameplayTeam GetGameplayTeam_Implementation() const override;
 
 protected:
 	UFUNCTION()
@@ -26,14 +30,14 @@ protected:
 
 	virtual void BeginPlay() override;
 
-	// ×é¼ş
+	// ç»„ä»¶
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UTextRenderComponent* HealthTextComp;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UPaperZDAnimationComponent* PaperZDAnimComponent;
+	UActorComponent* PaperZDAnimComponent;
 
-	// ÊôĞÔ
+	// å±æ€§
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHealth = 100.0f;
 
@@ -41,9 +45,9 @@ protected:
 	float CurrentHealth;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	float DetectionRadius = 800.0f; // ¼ì²âµ½Íæ¼ÒµÄ¾àÀë
+	float DetectionRadius = 800.0f; // æ£€æµ‹åˆ°ç©å®¶çš„è·ç¦»
 
-	// ¶¯»­×´Ì¬£¨±©Â¶¸øPaperZDÊ¹ÓÃ£©
+	// åŠ¨ç”»çŠ¶æ€ï¼ˆæš´éœ²ç»™PaperZDä½¿ç”¨ï¼‰
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
@@ -56,6 +60,6 @@ protected:
 	void UpdateHealthUI();
 	void Die();
 
-	// »ñÈ¡Íæ¼ÒÒıÓÃÒÔ±ã×ÓÀàÊ¹ÓÃ
+	// è·å–ç©å®¶å¼•ç”¨ä»¥ä¾¿å­ç±»ä½¿ç”¨
 	AActor* GetPlayerActor() const;
 };

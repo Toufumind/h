@@ -15,7 +15,7 @@ public class SpriteAssemble : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"Paper2D",
-			"PaperZD"
+			"GameplayTags"
 		});
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });

@@ -1,22 +1,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PaperZDAnimInstance.h"
+#include "UObject/Object.h"
 #include "SpriteAssembleAnimInstance.generated.h"
 
 class ASpriteAssembleCharacter;
 
 UCLASS()
-class SPRITEASSEMBLE_API USpriteAssembleAnimInstance : public UPaperZDAnimInstance
+class SPRITEASSEMBLE_API USpriteAssembleAnimInstance : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	// PaperZD 的初始化回调 (必须带有 _Implementation)
-	virtual void OnInit_Implementation() override;
+	void OnInit();
 
 	// PaperZD 的每帧更新回调 (名字是 OnTick，且必须带有 _Implementation)
-	virtual void OnTick_Implementation(float DeltaTime) override;
+	void OnTick(float DeltaTime);
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Character")

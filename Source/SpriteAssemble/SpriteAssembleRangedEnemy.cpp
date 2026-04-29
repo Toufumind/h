@@ -40,7 +40,7 @@ void ASpriteAssembleRangedEnemy::Tick(float DeltaTime)
 
 void ASpriteAssembleRangedEnemy::FireProjectile()
 {
-	if (ProjectileClass)
+	if (bEnableLegacyProjectileFire && ProjectileClass)
 	{
 		FVector SpawnLoc = GetActorLocation();
 		FRotator SpawnRot = GetActorRotation();

@@ -3,24 +3,15 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/Engine.h"
 
-void USpriteAssembleAnimInstance::OnInit_Implementation()
+void USpriteAssembleAnimInstance::OnInit()
 {
-	// 注意这里要调用父类的 _Implementation
-	Super::OnInit_Implementation();
 
 	// 在初始化时获取并缓存角色指针
 	//OwningCharacter = Cast<ASpriteAssembleCharacter>(GetOwningActor());
 }
 
-void USpriteAssembleAnimInstance::OnTick_Implementation(float DeltaTime)
+void USpriteAssembleAnimInstance::OnTick(float DeltaTime)
 {
-	// 注意这里要调用父类的 _Implementation
-	Super::OnTick_Implementation(DeltaTime);
-
-	if (!OwningCharacter)
-	{
-		OwningCharacter = Cast<ASpriteAssembleCharacter>(GetOwningActor());
-	}
 
 	// 每帧更新动画所需的变量
 	if (OwningCharacter)
